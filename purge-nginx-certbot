@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Check if the domain name is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <domain_name>"
+    exit 1
+fi
+
+# Arguments
+DOMAIN_NAME=$1
+
+# Define file paths
+NGINX_CONFIG_FILE="/etc/nginx/sites-available/$DOMAIN_NAME"
+NGINX_SYMLINK="/etc/nginx/sites-enabled/$DOMAIN_NAME"
+
+# Step 1: Remove Nginx configuration file in sites-available
+if [ -f "$NGINX_CONFIG_FILE" ]; then
+    echo "Removing Nginx configuration file: $NGINX_CONFIG_FILE"
+    sudo rm "$NGINX_CONFIG_FILE"
+else
+    echo "Nginx configuration file does not exist: $NGINX_CONFIG_FILE"
+fi
+
+# Step 2: Remove the symbolic link in sites-enabled
+if [ -L "$NGINX_SYMLINK" ]; then
+    echo "Removing symbolic link in sites-enabled: $NGINX_SYMLINK"
+    sudo rm "$NGINX_SYMLINK"
+else
+    echo "Symbolic link does not exist in sites-enabled: $NGINX_SYMLINK"
+fi
+
+# Step 3: Remove Certbot certificate if it exists
+echo "Attempting to delete Certbot certificate for: $DOMAIN_NAME"
+sudo certbot delete --cert-name "$DOMAIN_NAME"
+
+# Step 4: Reload Nginx to apply changes
+echo "Reloading Nginx to apply changes."
+sudo systemctl reload nginx
+
+echo "Purge completed for domain: $DOMAIN_NAME"

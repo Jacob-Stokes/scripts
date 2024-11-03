@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Check if both domain name and port are provided
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <domain_name> <port>"
+    exit 1
+fi
+
+# Arguments
+DOMAIN_NAME=$1
+PORT=$2
+
+# Step 1: Create Nginx configuration file for the domain
+NGINX_CONFIG_FILE="/etc/nginx/sites-available/$DOMAIN_NAME"
+
+sudo tee $NGINX_CONFIG_FILE > /dev/null <<EOL
+server {
+    listen 80;
+    server_name $DOMAIN_NAME;
+
+    location / {
+        proxy_pass http://localhost:$PORT;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+}
+EOL
+
+# Step 2: Enable the Nginx configuration by creating a symbolic link
+sudo ln -s $NGINX_CONFIG_FILE /etc/nginx/sites-enabled/
+
+# Step 3: Test Nginx configuration
+sudo nginx -t
+
+# Step 4: Reload Nginx to apply the changes
+sudo systemctl reload nginx
+
+# Step 5: Install SSL certificate with Certbot
+sudo certbot --nginx -d $DOMAIN_NAME --non-interactive --agree-tos -m your-email@example.com
+
+# Step 6: Set up automatic renewal (Certbot does this automatically, but we can test it)
+sudo certbot renew --dry-run
+
+echo "Nginx and Certbot setup completed for $DOMAIN_NAME on port $PORT."
